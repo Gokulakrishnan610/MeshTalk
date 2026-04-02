@@ -90,7 +90,7 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier
                         .fillMaxSize()
                         .background(Color(0xFF0D0D1A))
-                        .systemBarsPadding()
+                        // Removed global systemBarsPadding to allow screen-specific handling
                 ) {
                     val bleService = if (mainViewModel.isServiceBound.value)
                         mainViewModel.getBleService()

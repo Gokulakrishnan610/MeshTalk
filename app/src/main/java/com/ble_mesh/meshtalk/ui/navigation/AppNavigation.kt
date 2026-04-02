@@ -17,11 +17,12 @@ import com.ble_mesh.meshtalk.viewmodel.MainViewModel
 /** Navigation route constants */
 object Routes {
     const val DEVICE_LIST = "device_list"
-    const val CHAT = "chat/{peerId}/{peerName}"
+    // chatType: "global" or "dm" | peerNickname: nullable, URL-encoded
+    const val CHAT = "chat/{peerId}/{peerName}/{chatType}/{peerNickname}"
     const val DEBUG = "debug"
 
-    fun chatRoute(peerId: String, peerName: String) =
-        "chat/${peerId.replace("/", "_")}/${peerName.replace("/", "_")}"
+    fun chatRoute(peerId: String, peerName: String, chatType: String, peerNickname: String?) =
+        "chat/${peerId.replace("/", "_")}/${peerName.replace("/", "_")}/$chatType/${(peerNickname ?: "null").replace("/", "_")}"
 }
 
 @Composable
@@ -38,9 +39,9 @@ fun AppNavigation(
         composable(Routes.DEVICE_LIST) {
             DeviceListScreen(
                 viewModel = mainViewModel,
-                onOpenChat = { peerId, peerName ->
+                onOpenChat = { peerId, peerName, chatType, peerNickname ->
                     navController.navigate(
-                        Routes.chatRoute(peerId, peerName)
+                        Routes.chatRoute(peerId, peerName, chatType, peerNickname)
                     )
                 },
                 onOpenDebug = { navController.navigate(Routes.DEBUG) }
@@ -51,21 +52,27 @@ fun AppNavigation(
             route = Routes.CHAT,
             arguments = listOf(
                 navArgument("peerId") { type = NavType.StringType },
-                navArgument("peerName") { type = NavType.StringType }
+                navArgument("peerName") { type = NavType.StringType },
+                navArgument("chatType") { type = NavType.StringType; defaultValue = "global" },
+                navArgument("peerNickname") { type = NavType.StringType; nullable = true }
             )
         ) { backStackEntry ->
             val peerId = backStackEntry.arguments?.getString("peerId") ?: ""
             val peerName = backStackEntry.arguments?.getString("peerName") ?: "Unknown"
+            val chatType = backStackEntry.arguments?.getString("chatType") ?: "global"
+            val peerNickname = backStackEntry.arguments?.getString("peerNickname")
+                ?.takeIf { it != "null" }
 
-            chatViewModel.setConversation(peerId)
-            
-            // Get fresh instance from MainViewModel instead of standard lambda param to avoid null state capture
+            chatViewModel.setConversation(peerId, chatType, peerNickname)
+
+            // Get fresh BLE service instance
             val activeService = mainViewModel.getBleService()
             activeService?.let { chatViewModel.attachBleService(it) }
 
             ChatScreen(
                 peerId = peerId,
                 peerName = peerName,
+                chatType = chatType,
                 viewModel = chatViewModel,
                 onBack = { navController.popBackStack() }
             )

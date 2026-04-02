@@ -25,11 +25,12 @@ import kotlinx.coroutines.launch
  *
  * Thread safety: all state mutations happen on [scope] (IO dispatcher).
  */
-class MeshManager(context: Context) {
+class MeshManager(private val context: Context, var myNickname: String = "Unknown", var myDeviceId: String = "Unknown") {
 
     private val tag = "MeshManager"
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val dao = AppDatabase.getInstance(context).messageDao()
+    private val encryption = com.ble_mesh.meshtalk.crypto.EncryptionService(context)
 
     // ── Duplicate-prevention cache ──────────────────────────────────────────
     /** LRU-style bounded set; evicts oldest entry when full. */
@@ -57,15 +58,11 @@ class MeshManager(context: Context) {
 
     /**
      * Called when a BLE message is received (from GATT write or advertisement).
-     *
-     * Algorithm:
-     *  1. If id already in cache → drop (log cache hit).
-     *  2. else: persist to DB, notify UI, relay if TTL > 0.
      */
     fun onMessageReceived(rawMessage: MeshMessage) {
         scope.launch {
-            // Ensure the local database flags this as incoming, regardless of sender's payload
-            val message = rawMessage.copy(
+            // Ensure the local database flags this as incoming
+            var message = rawMessage.copy(
                 isOutgoing = false,
                 status = MessageStatus.RECEIVED
             )
@@ -81,10 +78,20 @@ class MeshManager(context: Context) {
 
             Log.d(tag, "New message: ${message.id} | TTL=${message.ttl}")
 
-            // Persist to local DB
-            dao.insert(message)
+            // ── Relief Logic + Decryption ────────────────────────────────────
+            // If this is a private DM addressed to ME → decrypt, store, do NOT relay
+            if (message.isPrivate && message.receiverId == myDeviceId.take(8)) {
+                Log.d(tag, "Private DM delivered to me via ID: ${message.id}")
+                val decryptedText = message.encryptedPayload?.let { encryption.decrypt(it) } ?: "🔒 [Decryption Failed]"
+                message = message.copy(message = decryptedText)
 
-            // Notify UI
+                dao.insert(message)
+                _incomingFlow.emit(message)
+                return@launch
+            }
+
+            // Otherwise, it's either global or a DM for someone else
+            dao.insert(message)
             _incomingFlow.emit(message)
 
             // Relay if hops remain
@@ -103,17 +110,18 @@ class MeshManager(context: Context) {
     }
 
     /**
-     * Called when this device originates a message (user typed & sent).
-     * Adds to cache immediately (prevents echo) and persists.
+     * Called when this device originates a message.
+     * @param airMessage The encrypted/processed message that goes out over the air.
+     * @param localMessage The plaintext version exclusively saved to the local database.
      */
-    fun onMessageSent(message: MeshMessage) {
+    fun onMessageSent(airMessage: MeshMessage, localMessage: MeshMessage = airMessage) {
         scope.launch {
             synchronized(seenMessageIds) {
-                seenMessageIds[message.id] = Unit
+                seenMessageIds[airMessage.id] = Unit
             }
-            dao.insert(message)
-            // Also emit for forwarding (broadcast to all peers)
-            _forwardFlow.emit(message)
+            dao.insert(localMessage)
+            // Emit the air bound message for forwarding
+            _forwardFlow.emit(airMessage)
         }
     }
 

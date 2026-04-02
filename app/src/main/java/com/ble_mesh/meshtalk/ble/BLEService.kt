@@ -51,15 +51,20 @@ class BLEService : Service() {
         super.onCreate()
         Log.d(tag, "onCreate")
 
-        val deviceId = getSharedPreferences("meshtalk", Context.MODE_PRIVATE)
-            .getString("device_id", null)
+        val prefs = getSharedPreferences("meshtalk", Context.MODE_PRIVATE)
+        val deviceId = (prefs.getString("device_id", null)
             ?: java.util.UUID.randomUUID().toString().also { newId ->
-                getSharedPreferences("meshtalk", Context.MODE_PRIVATE)
-                    .edit().putString("device_id", newId).apply()
+                prefs.edit().putString("device_id", newId).apply()
+            }).take(8)
+
+        // Load persisted nickname (set by user in settings; default to "User_<shortId>")
+        val nickname = prefs.getString("nickname", null)
+            ?: "User_${deviceId.take(5)}".also { defaultNick ->
+                prefs.edit().putString("nickname", defaultNick).apply()
             }
 
-        meshManager = MeshManager(this)
-        bleManager = BLEManager(this, meshManager, deviceId)
+        meshManager = MeshManager(this, nickname, deviceId)
+        bleManager = BLEManager(this, meshManager, deviceId, nickname)
 
         createNotificationChannel()
         startForeground(NOTIFICATION_ID, buildNotification())

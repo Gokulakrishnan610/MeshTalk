@@ -11,7 +11,7 @@ import com.ble_mesh.meshtalk.data.model.MessageStatus
  */
 @Database(
     entities = [MeshMessage::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 @TypeConverters(AppDatabase.Converters::class)

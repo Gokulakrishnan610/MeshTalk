@@ -59,11 +59,15 @@ fun DebugScreen(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // ── Header ───────────────────────────────────────────────────────
-            Surface(color = Color(0xFF111827).copy(alpha = 0.95f), shadowElevation = 8.dp) {
+            Surface(
+                color = Color(0xFF111827).copy(alpha = 0.96f),
+                shadowElevation = 12.dp,
+                modifier = Modifier.statusBarsPadding()
+            ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 10.dp),
+                        .padding(horizontal = 8.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onBack) {
@@ -81,7 +85,8 @@ fun DebugScreen(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 16.dp)
+                    .navigationBarsPadding(),
                 contentPadding = PaddingValues(vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {

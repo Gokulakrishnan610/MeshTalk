@@ -14,6 +14,8 @@ navigationCompose = "2.8.0"
 room = "2.7.0-beta01"
 gson = "2.10.1"
 coroutines = "1.8.1"
+bouncycastle = "1.70"
+security-crypto = "1.1.0-alpha06"
 
 [libraries]
 # Core
@@ -48,6 +50,10 @@ kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 
 # Gson
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
+
+# Encryption
+bouncycastle-bcprov = { group = "org.bouncycastle", name = "bcprov-jdk15on", version.ref = "bouncycastle" }
+androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "security-crypto" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }

@@ -31,7 +31,8 @@ import java.util.UUID
 class BLEManager(
     private val context: Context,
     private val meshManager: MeshManager,
-    private val deviceId: String          // This device's UUID string
+    private val deviceId: String,          // This device's UUID string
+    var myNickname: String = "Unknown"     // Human-readable nickname for DM routing
 ) {
 
     private val tag = "BLEManager"
@@ -49,6 +50,20 @@ class BLEManager(
     /** Mutable map of discovered devices: address → (name, rssi) */
     private val _discoveredDevices = MutableStateFlow<Map<String, DiscoveredDevice>>(emptyMap())
     val discoveredDevices: StateFlow<Map<String, DiscoveredDevice>> = _discoveredDevices
+
+    /** Map of discovered peer address → nickname (for DM routing) */
+    private val _peerNicknames = MutableStateFlow<Map<String, String>>(emptyMap())
+    val peerNicknames: StateFlow<Map<String, String>> = _peerNicknames
+
+    fun updateNickname(newName: String) {
+        myNickname = newName
+        try {
+            bluetoothAdapter?.name = newName
+            Log.d(tag, "BLE Adapter name updated to: $newName")
+        } catch (e: Exception) {
+            Log.w(tag, "Could not set BT adapter name dynamically: ${e.message}")
+        }
+    }
 
     // ── Advertise ───────────────────────────────────────────────────────────
     private var advertiser: BluetoothLeAdvertiser? = null
@@ -115,21 +130,39 @@ class BLEManager(
             .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_MEDIUM)
             .build()
 
-        val data = AdvertiseData.Builder()
-            .setIncludeDeviceName(false)    // name can exceed 31B limit
+        // Set BT adapter name to nickname BEFORE advertising so scan response includes it
+        try {
+            bluetoothAdapter?.name = myNickname.take(8) // Keep short: 8 chars fits easily in scan response
+        } catch (e: Exception) {
+            Log.w(tag, "Could not set BT adapter name: ${e.message}")
+        }
+
+        // Main advertisement — only Service UUID (must stay under 31 bytes)
+        val advertiseData = AdvertiseData.Builder()
+            .setIncludeDeviceName(false)          // name goes in scan response, not here
             .addServiceUuid(ParcelUuid(GattAttributes.MESH_SERVICE_UUID))
+            .build()
+
+        // Scan response — carries our nickname and deviceId explicitly
+        val shortId = deviceId.take(8)
+        val shortName = myNickname.take(8)
+        val payload = "$shortId|$shortName".toByteArray(Charsets.UTF_8)
+        
+        val scanResponse = AdvertiseData.Builder()
+            .setIncludeDeviceName(false)           
+            .addManufacturerData(0x02E5, payload) // 0x02E5 is a random test manufacturer ID
             .build()
 
         advertiseCallback = object : AdvertiseCallback() {
             override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
-                Log.d(tag, "Advertising started")
+                Log.d(tag, "Advertising started with nickname: $myNickname")
             }
             override fun onStartFailure(errorCode: Int) {
-                Log.e(tag, "Advertise failed: $errorCode")
+                Log.e(tag, "Advertise failed errorCode=$errorCode. Try moving payload if it's too large!")
             }
         }
 
-        advertiser?.startAdvertising(settings, data, advertiseCallback)
+        advertiser?.startAdvertising(settings, advertiseData, scanResponse, advertiseCallback)
     }
 
     private fun stopAdvertising() {
@@ -201,12 +234,27 @@ class BLEManager(
     private fun handleScanResult(result: ScanResult) {
         val device = result.device
         val rssi = result.rssi
-        val name = try { device.name } catch (e: Exception) { null }
-        val displayName = if (!name.isNullOrBlank()) name else "Unknown (${device.address.takeLast(5)})"
+        val manufacturerData = result.scanRecord?.getManufacturerSpecificData(0x02E5)
+
+        var parsedDeviceId = device.address
+        var parsedName = try { device.name } catch (e: Exception) { null } ?: "Unknown (${device.address.takeLast(5)})"
+
+        if (manufacturerData != null) {
+            val payloadStr = String(manufacturerData, Charsets.UTF_8).split("|")
+            if (payloadStr.size == 2) {
+                parsedDeviceId = payloadStr[0]
+                parsedName = payloadStr[1]
+            }
+        }
 
         val current = _discoveredDevices.value.toMutableMap()
-        current[device.address] = DiscoveredDevice(device.address, displayName, rssi, device, System.currentTimeMillis())
+        current[device.address] = DiscoveredDevice(device.address, parsedDeviceId, parsedName, rssi, device, System.currentTimeMillis())
         _discoveredDevices.value = current
+
+        // Track peer nickname 
+        val currentNicknames = _peerNicknames.value.toMutableMap()
+        currentNicknames[device.address] = parsedName
+        _peerNicknames.value = currentNicknames
 
         // Auto-connect to exchange messages via GATT
         if (!clientGatts.containsKey(device.address)) {
@@ -385,6 +433,7 @@ class BLEManager(
 /** Model for a discovered BLE peer. */
 data class DiscoveredDevice(
     val address: String,
+    val deviceId: String,
     val name: String,
     val rssi: Int,
     val bluetoothDevice: BluetoothDevice,

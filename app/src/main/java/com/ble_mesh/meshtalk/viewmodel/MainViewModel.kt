@@ -32,9 +32,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _bleStatus = MutableStateFlow("Not started")
     val bleStatus: StateFlow<String> = _bleStatus
 
-    // ── Device ID ────────────────────────────────────────────────────────────
-    val deviceId: String = application.getSharedPreferences("meshtalk", Context.MODE_PRIVATE)
-        .getString("device_id", "Unknown") ?: "Unknown"
+    private val prefs = application.getSharedPreferences("meshtalk", Context.MODE_PRIVATE)
+
+    // ── Device ID & Nickname ─────────────────────────────────────────────────
+    val deviceId: String = (prefs.getString("device_id", "Unknown") ?: "Unknown").take(8)
+
+    private val _myNickname = MutableStateFlow(
+        prefs.getString("nickname", "Unknown") ?: "Unknown"
+    )
+    val myNickname: StateFlow<String> = _myNickname
+
+    fun updateNickname(newName: String) {
+        val trimmed = newName.trim().take(8)
+        if (trimmed.isNotBlank()) {
+            prefs.edit().putString("nickname", trimmed).apply()
+            _myNickname.value = trimmed
+            bleService?.bleManager?.updateNickname(trimmed)
+            bleService?.meshManager?.myNickname = trimmed
+        }
+    }
+
+    /** Peer address → nickname map, populated from BLE scan results */
+    private val _peerNicknameMap = MutableStateFlow<Map<String, String>>(emptyMap())
+    val peerNicknameMap: StateFlow<Map<String, String>> = _peerNicknameMap
 
     // ── Service Connection ───────────────────────────────────────────────────
     val serviceConnection = object : ServiceConnection {

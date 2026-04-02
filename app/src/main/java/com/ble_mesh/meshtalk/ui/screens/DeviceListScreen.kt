@@ -29,7 +29,7 @@ import com.ble_mesh.meshtalk.viewmodel.MainViewModel
 @Composable
 fun DeviceListScreen(
     viewModel: MainViewModel,
-    onOpenChat: (String, String) -> Unit,
+    onOpenChat: (peerId: String, peerName: String, chatType: String, peerNickname: String?) -> Unit,
     onOpenDebug: () -> Unit
 ) {
     val discoveredDevices by viewModel.discoveredDevices.collectAsStateWithLifecycle()
@@ -50,6 +50,10 @@ fun DeviceListScreen(
 
     val deviceList = bleServiceDevices.values.toList()
 
+    val myNickname by viewModel.myNickname.collectAsStateWithLifecycle()
+    var showEditDialog by remember { mutableStateOf(false) }
+    var editNameText by remember { mutableStateOf("") }
+
     // Pulse animation for the active scan indicator
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulseAlpha by infiniteTransition.animateFloat(
@@ -65,17 +69,19 @@ fun DeviceListScreen(
                     colors = listOf(Color(0xFF0D0D1A), Color(0xFF0A1628))
                 )
             )
+            .navigationBarsPadding() // Protect from bottom nav bar
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // ── Top App Bar ──────────────────────────────────────────────────
             Surface(
-                color = Color(0xFF111827).copy(alpha = 0.95f),
-                shadowElevation = 8.dp
+                color = Color(0xFF111827).copy(alpha = 0.96f),
+                shadowElevation = 12.dp,
+                modifier = Modifier.statusBarsPadding() // Protect from status bar
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                        .padding(horizontal = 20.dp, vertical = 20.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Animated BLE icon
@@ -105,11 +111,31 @@ fun DeviceListScreen(
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
-                        Text(
-                            "ID: ${viewModel.deviceId.take(8)}…",
-                            fontSize = 11.sp,
-                            color = Color(0xFF9CA3AF)
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "Name: $myNickname",
+                                fontSize = 12.sp,
+                                color = Color(0xFF6EE7B7)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF1E293B))
+                                    .clickable {
+                                        editNameText = myNickname
+                                        showEditDialog = true
+                                    }
+                                    .padding(4.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Edit,
+                                    contentDescription = "Edit Name",
+                                    tint = Color(0xFF9CA3AF),
+                                    modifier = Modifier.size(12.dp)
+                                )
+                            }
+                        }
                     }
                     // Debug button
                     IconButton(onClick = onOpenDebug) {
@@ -155,7 +181,7 @@ fun DeviceListScreen(
 
             // ── Global Chat Button ───────────────────────────────────────────
             Button(
-                onClick = { onOpenChat("global", "Global Mesh") },
+                onClick = { onOpenChat("global", "Global Mesh", "global", null) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp, vertical = 8.dp)
@@ -176,6 +202,8 @@ fun DeviceListScreen(
             ) {
                 Text("Nearby Mesh Nodes", color = Color(0xFF6B7280), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                 Spacer(modifier = Modifier.weight(1f))
+                Text("Tap to chat privately", color = Color(0xFF4B5563), fontSize = 12.sp)
+                Spacer(modifier = Modifier.width(4.dp))
                 Icon(Icons.Default.Sensors, contentDescription = null, tint = Color(0xFF4B5563), modifier = Modifier.size(16.dp))
             }
 
@@ -190,11 +218,53 @@ fun DeviceListScreen(
                     contentPadding = PaddingValues(vertical = 8.dp)
                 ) {
                     items(deviceList, key = { it.address }) { device ->
-                        DeviceCard(device = device, onClick = { onOpenChat("global", "Global Mesh") })
+                        DeviceCard(
+                            device = device,
+                            onClick = {
+                                onOpenChat(device.deviceId, device.name, "dm", device.name)
+                            }
+                        )
                     }
                 }
             }
         }
+    }
+
+    if (showEditDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditDialog = false },
+            title = { Text("Edit Nickname", color = Color.White) },
+            text = {
+                OutlinedTextField(
+                    value = editNameText,
+                    onValueChange = { editNameText = it.take(8) },
+                    label = { Text("Nickname (max 8 chars)", color = Color(0xFF9CA3AF)) },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = Color(0xFF7C3AED)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            containerColor = Color(0xFF1E293B),
+            confirmButton = {
+                TextButton(onClick = {
+                    if (editNameText.isNotBlank()) {
+                        viewModel.updateNickname(editNameText)
+                    }
+                    showEditDialog = false
+                }) {
+                    Text("Save", color = Color(0xFF10B981))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditDialog = false }) {
+                    Text("Cancel", color = Color(0xFFEF4444))
+                }
+            }
+        )
     }
 }
 

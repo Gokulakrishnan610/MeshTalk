@@ -71,6 +71,10 @@ dependencies {
     // Gson (message serialization)
     implementation(libs.gson)
 
+    // Encryption (for DM private messages)
+    implementation(libs.bouncycastle.bcprov)
+    implementation(libs.androidx.security.crypto)
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

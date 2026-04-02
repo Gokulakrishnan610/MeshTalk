@@ -39,9 +39,11 @@ import java.util.Locale
 fun ChatScreen(
     peerId: String,
     peerName: String,
+    chatType: String = "global",
     viewModel: ChatViewModel,
     onBack: () -> Unit
 ) {
+    val isPrivate = chatType == "dm"
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     var inputText by remember { mutableStateOf("") }
@@ -65,11 +67,15 @@ fun ChatScreen(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // ── Top Bar ──────────────────────────────────────────────────────
-            Surface(color = Color(0xFF111827).copy(alpha = 0.95f), shadowElevation = 8.dp) {
+            Surface(
+                color = Color(0xFF111827).copy(alpha = 0.96f),
+                shadowElevation = 12.dp,
+                modifier = Modifier.statusBarsPadding()
+            ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 10.dp),
+                        .padding(horizontal = 8.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onBack) {
@@ -95,8 +101,23 @@ fun ChatScreen(
                     }
                     Spacer(modifier = Modifier.width(10.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(peerName, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-                        Text("Mesh peer", color = Color(0xFF6EE7B7), fontSize = 11.sp)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(peerName, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                            if (isPrivate) {
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Icon(
+                                    Icons.Default.Lock,
+                                    contentDescription = "Encrypted DM",
+                                    tint = Color(0xFF6EE7B7),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
+                        Text(
+                            if (isPrivate) "🔒 Private encrypted chat" else "Global mesh broadcast",
+                            color = if (isPrivate) Color(0xFF6EE7B7) else Color(0xFF9CA3AF),
+                            fontSize = 11.sp
+                        )
                     }
                     // Broadcast button
                     IconButton(
@@ -143,13 +164,14 @@ fun ChatScreen(
             // ── Input Row ────────────────────────────────────────────────────
             Surface(
                 color = Color(0xFF111827),
-                shadowElevation = 16.dp
+                shadowElevation = 16.dp,
+                modifier = Modifier.navigationBarsPadding() // Protect from bottom nav/gestures
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.Bottom
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextField(
                         value = inputText,
@@ -239,7 +261,7 @@ private fun MessageBubble(message: MeshMessage, isOutgoing: Boolean) {
             Column {
                 if (!isOutgoing) {
                     Text(
-                        text = "via mesh",
+                        text = message.senderNickname ?: "via mesh",
                         fontSize = 9.sp,
                         color = Color(0xFF6EE7B7),
                         fontWeight = FontWeight.SemiBold

@@ -19,13 +19,22 @@ interface MessageDao {
     )
     fun getConversation(peerId: String): Flow<List<MeshMessage>>
 
+    /** Observe private (1-on-1) DM thread between two device IDs. */
+    @Query(
+        """SELECT * FROM messages WHERE isPrivate = 1 AND (
+            (senderId = :myDeviceId AND receiverId = :peerDeviceId) OR
+            (senderId = :peerDeviceId AND receiverId = :myDeviceId)
+        ) ORDER BY timestamp ASC"""
+    )
+    fun getPrivateConversation(myDeviceId: String, peerDeviceId: String): Flow<List<MeshMessage>>
+
+    /** Observe all global (non-private) messages for the global mesh chat. */
+    @Query("SELECT * FROM messages WHERE isPrivate = 0 AND status != 'RELAYED' ORDER BY timestamp ASC LIMIT 500")
+    fun getGlobalChat(): Flow<List<MeshMessage>>
+
     /** Observe all messages (broadcast + all conversations), for the debug screen. */
     @Query("SELECT * FROM messages ORDER BY timestamp DESC LIMIT 200")
     fun getAllMessages(): Flow<List<MeshMessage>>
-
-    /** Observe all messages for the global mesh chat, ordered ASC for UI. */
-    @Query("SELECT * FROM messages WHERE status != 'RELAYED' ORDER BY timestamp ASC LIMIT 500")
-    fun getGlobalChat(): Flow<List<MeshMessage>>
 
     /** Count of messages relayed by this device (status = RELAYED). */
     @Query("SELECT COUNT(*) FROM messages WHERE status = 'RELAYED'")

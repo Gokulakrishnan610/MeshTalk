@@ -25,7 +25,12 @@ data class MeshMessage(
     val ttl: Int,
     val timestamp: Long,
     val isOutgoing: Boolean = false,
-    val status: MessageStatus = MessageStatus.RECEIVED
+    val status: MessageStatus = MessageStatus.RECEIVED,
+    // Personal chat fields (ported logic from bitchat BitchatMessage)
+    val isPrivate: Boolean = false,              // true = DM, false = global broadcast
+    val senderNickname: String? = null,          // display name of sender
+    val recipientNickname: String? = null,       // target nickname for DM routing
+    val encryptedPayload: String? = null         // base64 AES-256-GCM ciphertext for DMs
 )
 
 enum class MessageStatus {

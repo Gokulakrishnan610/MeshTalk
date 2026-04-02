@@ -24,6 +24,10 @@ class MessageRepository(context: Context) {
     fun getGlobalChat(): Flow<List<MeshMessage>> =
         dao.getGlobalChat()
 
+    /** Private 1-on-1 DM thread between this device ID and a peer's device ID */
+    fun getPrivateConversation(myDeviceId: String, peerDeviceId: String): Flow<List<MeshMessage>> =
+        dao.getPrivateConversation(myDeviceId, peerDeviceId)
+
     /** All messages (for debug screen) */
     fun getAllMessages(): Flow<List<MeshMessage>> =
         dao.getAllMessages()
