@@ -75,7 +75,7 @@ fun ChatScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 14.dp),
+                        .padding(horizontal = 14.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onBack) {
@@ -114,7 +114,7 @@ fun ChatScreen(
                             }
                         }
                         Text(
-                            if (isPrivate) "🔒 Private encrypted chat" else "Global mesh broadcast",
+                            if (isPrivate) "Private encrypted chat" else "Global mesh broadcast",
                             color = if (isPrivate) Color(0xFF6EE7B7) else Color(0xFF9CA3AF),
                             fontSize = 11.sp
                         )
@@ -135,7 +135,12 @@ fun ChatScreen(
 
             // ── Message List ─────────────────────────────────────────────────
             if (messages.isEmpty()) {
-                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(Icons.Default.Forum, null, tint = Color(0xFF374151), modifier = Modifier.size(60.dp))
                         Spacer(modifier = Modifier.height(12.dp))
@@ -176,7 +181,9 @@ fun ChatScreen(
                     TextField(
                         value = inputText,
                         onValueChange = { inputText = it },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp),
                         placeholder = {
                             Text("Message…", color = Color(0xFF6B7280))
                         },
@@ -189,8 +196,8 @@ fun ChatScreen(
                             unfocusedIndicatorColor = Color.Transparent,
                             cursorColor = Color(0xFF7C3AED)
                         ),
-                        shape = RoundedCornerShape(24.dp),
-                        maxLines = 4,
+                        shape = CircleShape,
+                        maxLines = 1, // Single line better for pill shape
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                         keyboardActions = KeyboardActions(onSend = {
                             if (inputText.isNotBlank()) {
@@ -203,7 +210,7 @@ fun ChatScreen(
                     Spacer(modifier = Modifier.width(8.dp))
                     Box(
                         modifier = Modifier
-                            .size(48.dp)
+                            .size(52.dp)
                             .clip(CircleShape)
                             .background(
                                 if (inputText.isNotBlank())

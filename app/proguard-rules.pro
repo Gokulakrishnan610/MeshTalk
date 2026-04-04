@@ -1,21 +1,38 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Room
+-keepclassmembers class * extends androidx.room.RoomDatabase {
+    <init>(...);
+}
+-keep class * extends androidx.room.RoomDatabase
+-keep class * { @androidx.room.Entity *; }
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Gson
+-keepattributes Signature
+-keepattributes *Annotation*
+-dontwarn sun.misc.**
+-keep class com.google.gson.examples.android.model.** { <fields>; }
+-keep class * extends com.google.gson.TypeAdapter
+-keep class * implements com.google.gson.TypeAdapterFactory
+-keep class * implements com.google.gson.JsonSerializer
+-keep class * implements com.google.gson.JsonDeserializer
+-keepclassmembers class * {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# MeshTalk Models (Ensure Gson can deserialize them)
+-keep class com.ble_mesh.meshtalk.data.model.** { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# BouncyCastle
+-dontwarn org.bouncycastle.**
+-keep class org.bouncycastle.** { *; }
+
+# Security Crypto
+-keep class androidx.security.crypto.** { *; }
+
+# General
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
+
+# Fix for Tink/Security-Crypto missing optional dependencies
+-dontwarn javax.annotation.concurrent.ThreadSafe
+-dontwarn org.joda.time.Instant
+-dontwarn com.google.crypto.tink.**

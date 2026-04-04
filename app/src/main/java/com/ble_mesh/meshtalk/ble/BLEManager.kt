@@ -58,10 +58,46 @@ class BLEManager(
     fun updateNickname(newName: String) {
         myNickname = newName
         try {
-            bluetoothAdapter?.name = newName
+            bluetoothAdapter?.name = newName.take(8)
             Log.d(tag, "BLE Adapter name updated to: $newName")
+            
+            // Restart advertising to refresh the scan response payload with the new name
+            if (advertiseCallback != null) {
+                Log.d(tag, "Restarting advertising to propagate nickname change")
+                stopAdvertising()
+                startAdvertising()
+            }
         } catch (e: Exception) {
-            Log.w(tag, "Could not set BT adapter name dynamically: ${e.message}")
+            Log.w(tag, "Could not update or restart advertising: ${e.message}")
+        }
+    }
+
+    /** 
+     * Called when we learn a new nickname for a device from a mesh message.
+     * Maps the human-readable deviceId to the BLE address.
+     */
+    fun updatePeerNickname(peerDeviceId: String, newName: String?) {
+        if (newName.isNullOrBlank()) return
+        Log.d(tag, "Syncing nickname for $peerDeviceId -> $newName")
+        
+        // Update DiscoveredDevice list (affects Device List UI)
+        val currentDevices = _discoveredDevices.value.toMutableMap()
+        var changed = false
+        currentDevices.forEach { (address, device) ->
+            if (device.deviceId == peerDeviceId && device.name != newName) {
+                currentDevices[address] = device.copy(name = newName)
+                changed = true
+            }
+        }
+        if (changed) {
+            _discoveredDevices.value = currentDevices
+        }
+
+        // Update routing nicknames map
+        val currentNicks = _peerNicknames.value.toMutableMap()
+        if (currentNicks[peerDeviceId] != newName) {
+            currentNicks[peerDeviceId] = newName
+            _peerNicknames.value = currentNicks
         }
     }
 

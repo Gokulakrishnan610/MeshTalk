@@ -76,6 +76,8 @@ class BLEService : Service() {
         serviceScope.launch {
             meshManager.incomingFlow.collect { msg ->
                 if (!msg.isOutgoing) {
+                    // Sync nickname if it's different from what we know
+                    bleManager.updatePeerNickname(msg.senderId, msg.senderNickname)
                     showNewMessageNotification(msg)
                 }
             }
